@@ -24,7 +24,7 @@ namespace CustomBindings
         [FunctionName("Function1")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
-            [AntiXSSHttpRequest] SanitizedHttpRequest<Model<SubModel>> httpReq,
+            [AntiXSSHttpRequest] SanitizedHttpRequest httpReq,
             //[CosmosDB(
             //databaseName: "mam-integration",
             //collectionName: "draft-assets",
@@ -32,10 +32,13 @@ namespace CustomBindings
             //SqlQuery = "select * from c where c.jobId = 'a8d2ec3f-6bbf-4202-bfb6-6ad57101ab06'")] IEnumerable<object> items,
             ILogger log)
         {
-            log.LogInformation(JsonConvert.SerializeObject(httpReq.Body));
-            log.LogInformation("-------------------------------------------");
+            var body = await new StreamReader(req.Body).ReadToEndAsync();
+            var model = JsonConvert.DeserializeObject<Model<SubModel>>(body);
 
-            return new OkObjectResult(httpReq);
+            //log.LogInformation(JsonConvert.SerializeObject(model));
+            //log.LogInformation("-------------------------------------------");
+
+            return new OkObjectResult(new { modelFromHttpReq = model, modelFromBinding = httpReq });
         }
 
         [FunctionName("Function2")]
@@ -43,6 +46,7 @@ namespace CustomBindings
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log)
         {
+            //return new OkObjectResult(new SubModel { Name = "<script>alert(\"xss\")</script>testname" });
             return _antiXSSActionResult.OkObjectResult(new SubModel { Name = "<script>alert(\"xss\")</script>testname" });
         }
     }
@@ -53,6 +57,7 @@ namespace CustomBindings
         public int Id { get; set; }
         public string Name { get; set; }
         public int Age { get; set; }
+        public bool IsMale { get; set; }
 
         public T SubModel { get; set; }
     }
@@ -60,5 +65,6 @@ namespace CustomBindings
     public class SubModel
     {
         public string Name { get; set; }
+        public List<int> SomeNums { get; set; }
     }
 }

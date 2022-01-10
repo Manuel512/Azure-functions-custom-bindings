@@ -6,7 +6,7 @@ using System.Text;
 
 namespace CustomBindings
 {
-    public class SanitizedHttpRequest<T>
+    public class SanitizedHttpRequest
     {
         public SanitizedHttpRequest()
         {
@@ -14,6 +14,13 @@ namespace CustomBindings
         }
 
         public Dictionary<string, string> Query { get; set; }
+    }
+    public class SanitizedHttpRequest<T> : SanitizedHttpRequest
+    {
+        public SanitizedHttpRequest()
+        {
+
+        }
 
         public T Body { get; set; }
     }

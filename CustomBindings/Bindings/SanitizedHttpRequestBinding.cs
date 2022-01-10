@@ -27,7 +27,7 @@ namespace CustomBindings.Bindings
         {
             var paramType = context.Parameter.ParameterType;
             var genericParamType = paramType.GetGenericArguments().FirstOrDefault();
-            IBinding binding = CreateBodyBinding(logger, genericParamType);
+            IBinding binding = CreateBodyBinding(logger, genericParamType ?? paramType);
             return Task.FromResult(binding);
         }
 
@@ -72,13 +72,15 @@ namespace CustomBindings.Bindings
 
     public class AntiXSSHttpRequestValueProvider<T> : IValueProvider
     {
-        private HttpRequest request;
-        private ILogger logger;
+        private HttpRequest _request;
+        private ILogger _logger;
+        private readonly HtmlSanitizer _htmlSanitizer;
 
         public AntiXSSHttpRequestValueProvider(HttpRequest request, ILogger logger)
         {
-            this.request = request;
-            this.logger = logger;
+            _request = request;
+            _logger = logger;
+            _htmlSanitizer = new HtmlSanitizer();
         }
 
         public Type Type => typeof(object);
@@ -86,24 +88,38 @@ namespace CustomBindings.Bindings
 
         public async Task<object> GetValueAsync()
         {
-            string requestBody = await new StreamReader(request.Body).ReadToEndAsync();
+            string requestBody = await new StreamReader(_request.Body).ReadToEndAsync();
             try
             {
-                var sanitizer = new HtmlSanitizer();
-                requestBody = sanitizer.Sanitize(requestBody);
-                var httpRequest = new SanitizedHttpRequest<T>
+                SanitizedHttpRequest httpRequest = null;
+
+                if (typeof(T) != typeof(SanitizedHttpRequest))
                 {
-                    Body = JsonConvert.DeserializeObject<T>(requestBody),
-                    Query = request.Query.ToDictionary(x => x.Key, x => sanitizer.Sanitize(x.Value))
-                };
+                    httpRequest = new SanitizedHttpRequest<T>
+                    {
+                        Body = GetTypedRequestBody(requestBody),
+                    };
+                }
+
+                httpRequest ??= new SanitizedHttpRequest();
+
+                httpRequest.Query = _request.Query.ToDictionary(x => x.Key, x => _htmlSanitizer.Sanitize(x.Value));
 
                 return httpRequest;
             }
             catch (Exception ex)
             {
-                logger.LogCritical(ex, $"Error deserializing object from body: {requestBody}");
+                _logger.LogCritical(ex, $"Error deserializing object from body: {requestBody}");
                 throw;
             }
+        }
+
+        private T GetTypedRequestBody(string requestBody)
+        {
+            if (string.IsNullOrEmpty(requestBody))
+                return default;
+
+            return JsonConvert.DeserializeObject<T>(requestBody);
         }
     }
 }

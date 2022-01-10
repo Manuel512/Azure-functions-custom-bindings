@@ -17,42 +17,40 @@ namespace CustomBindings
 
     public class AntiXSSActionResult : IAntiXSSActionResult
     {
+        private const string ContentTypeApplicationJson = "application/json";
         public ContentResult OkObjectResult(object value) => new OkResult(value);
         public ContentResult BadRequestObjectResult(object value) => new BadRequestResult(value);
         public ContentResult NotFoundObjectResult(object value) => new NotFoundResult(value);
 
-        private class OkResult : ContentResult
+        protected class BaseContentResult : ContentResult
         {
-            private const string ContentTypeApplicationJson = "application/json";
-
-            public OkResult(object value)
+            public BaseContentResult(object value)
             {
                 ContentType = ContentTypeApplicationJson;
                 Content = JsonConvert.SerializeObject(value);
+            }
+        }
+
+        private class OkResult : BaseContentResult
+        {
+            public OkResult(object value) : base(value)
+            {
                 StatusCode = (int)HttpStatusCode.OK;
             }
         }
 
-        private class BadRequestResult : ContentResult
+        private class BadRequestResult : BaseContentResult
         {
-            private const string ContentTypeApplicationJson = "application/json";
-
-            public BadRequestResult(object value)
+            public BadRequestResult(object value) : base(value)
             {
-                ContentType = ContentTypeApplicationJson;
-                Content = JsonConvert.SerializeObject(value);
                 StatusCode = (int)HttpStatusCode.BadRequest;
             }
         }
 
-        private class NotFoundResult : ContentResult
+        private class NotFoundResult : BaseContentResult
         {
-            private const string ContentTypeApplicationJson = "application/json";
-
-            public NotFoundResult(object value)
+            public NotFoundResult(object value) : base(value)
             {
-                ContentType = ContentTypeApplicationJson;
-                Content = JsonConvert.SerializeObject(value);
                 StatusCode = (int)HttpStatusCode.NotFound;
             }
         }
