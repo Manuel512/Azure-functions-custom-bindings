@@ -58,38 +58,30 @@ namespace CustomBindings
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            JToken jtoken;
+            JToken jToken = null;
             object target;
 
             if (reader.TokenType == JsonToken.StartArray)
-            {
-                jtoken = JArray.Parse(_htmlSanitizer.Sanitize(reader.Value.ToString()));
-                target = CreateInstanceAndPopulate(serializer, objectType, jtoken);
-            }
+                jToken = JArray.Parse(_htmlSanitizer.Sanitize(reader.Value.ToString()));
 
             if (reader.TokenType == JsonToken.StartObject)
+                jToken = JObject.Parse(_htmlSanitizer.Sanitize(reader.Value.ToString()));             
+
+            if (jToken != null)
             {
-                jtoken = JObject.Parse(_htmlSanitizer.Sanitize(reader.Value.ToString()));
-                target = CreateInstanceAndPopulate(serializer, objectType, jtoken);
+                target = Activator.CreateInstance(objectType);
+                serializer.Populate(jToken.CreateReader(), target);
             }
 
             if (reader.TokenType == JsonToken.Null)
                 return null;
             else
             {
-                jtoken = JToken.Load(reader);
-                target = _htmlSanitizer.Sanitize(((JValue)jtoken).Value.ToString());
+                jToken = JToken.Load(reader);
+                target = _htmlSanitizer.Sanitize(((JValue)jToken).Value.ToString());
             }
 
             return target;
-        }
-        private object CreateInstanceAndPopulate(JsonSerializer serializer, Type objectType, JToken jToken)
-        {
-            var instance = Activator.CreateInstance(objectType);
-
-            serializer.Populate(jToken.CreateReader(), instance);
-
-            return instance;
         }
     }
 
